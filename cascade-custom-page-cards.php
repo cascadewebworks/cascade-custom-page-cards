@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/vendor/plugin-update-checker/plugin-update-checker.php';
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 $cascade_puc = PucFactory::buildUpdateChecker(
-    'https://github.com/cascadewebworks/page-cards/',
+    'https://github.com/cascadewebworks/cascade-custom-page-cards/',
     __FILE__,
     'cascade-custom-page-cards'
 );
@@ -156,7 +156,7 @@ function cascade_enqueue_editor_icon_libs() {
 
 // ── Admin Settings ────────────────────────────────────────────────────────────
 
-add_filter( 'plugin_action_links_cascade-custom-page-cards/cascade-custom-page-cards.php', 'cascade_plugin_action_links' );
+add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'cascade_plugin_action_links' );
 function cascade_plugin_action_links( $links ) {
     array_unshift( $links, '<a href="' . admin_url( 'admin.php?page=cascade-page-cards' ) . '">Settings</a>' );
     return $links;
