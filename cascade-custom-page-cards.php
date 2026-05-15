@@ -31,6 +31,7 @@ function cascade_default_settings() {
             'textColor'         => '#333333',
             'iconType'          => 'mdi',
             'icon'              => 'chevron-right',
+            'iconSvg'           => '',
             'subtitleSource'    => 'excerpt',
             'cardCount'         => 2,
             'cptIconField'      => 'cpt_icon',
@@ -120,7 +121,7 @@ function cascade_register_blocks() {
             // Child Pages
             'iconType'       => array( 'type' => 'string', 'default' => $pc['iconType'] ),
             'icon'           => array( 'type' => 'string', 'default' => $pc['icon'] ),
-            'iconSvg'        => array( 'type' => 'string', 'default' => '' ),
+            'iconSvg'        => array( 'type' => 'string', 'default' => $pc['iconSvg'] ),
             'subtitleSource' => array( 'type' => 'string', 'default' => $pc['subtitleSource'] ),
             // Custom Entries
             'cardCount' => array( 'type' => 'integer', 'default' => $pc['cardCount'] ),
@@ -179,6 +180,7 @@ function cascade_add_settings_page() {
 add_action( 'admin_enqueue_scripts', 'cascade_enqueue_settings_assets' );
 function cascade_enqueue_settings_assets( $hook ) {
     if ( $hook !== 'admin_page_cascade-page-cards' ) { return; }
+    wp_enqueue_media();
     wp_enqueue_style( 'wp-color-picker' );
     wp_enqueue_script( 'wp-color-picker' );
     wp_add_inline_script( 'wp-color-picker',
@@ -208,6 +210,8 @@ function cascade_sanitize_settings( $input ) {
             $settings['pageCards']['iconType'] = $pc['iconType'];
         if ( isset( $pc['icon'] ) )
             $settings['pageCards']['icon'] = sanitize_text_field( $pc['icon'] );
+        if ( isset( $pc['iconSvg'] ) )
+            $settings['pageCards']['iconSvg'] = esc_url_raw( $pc['iconSvg'] );
         if ( isset( $pc['subtitleSource'] ) && in_array( $pc['subtitleSource'], $subtitle_sources, true ) )
             $settings['pageCards']['subtitleSource'] = $pc['subtitleSource'];
         $cnt = isset( $pc['cardCount'] ) ? intval( $pc['cardCount'] ) : 2;
@@ -280,11 +284,24 @@ function cascade_render_settings_page() {
                         </select>
                     </td>
                 </tr>
-                <tr>
+                <tr id="pc_icon_row">
                     <th scope="row"><label for="pc_icon">Default Icon</label></th>
                     <td>
                         <input type="text" name="cascade_blocks_defaults[pageCards][icon]" id="pc_icon" value="<?php echo esc_attr( $pc['icon'] ); ?>" class="regular-text">
                         <p class="description">MDI slug (e.g. <code>file-document-outline</code>), FA class string (e.g. <code>fa-solid fa-file</code>), or Dashicon name (e.g. <code>admin-home</code>).</p>
+                    </td>
+                </tr>
+                <tr id="pc_iconSvg_row">
+                    <th scope="row">Default Icon Image</th>
+                    <td>
+                        <input type="hidden" name="cascade_blocks_defaults[pageCards][iconSvg]" id="pc_iconSvg" value="<?php echo esc_attr( $pc['iconSvg'] ); ?>">
+                        <div id="pc_iconSvg_preview">
+                            <?php if ( ! empty( $pc['iconSvg'] ) ) : ?>
+                            <img src="<?php echo esc_url( $pc['iconSvg'] ); ?>" style="max-height:48px; margin-bottom:8px; display:block;">
+                            <?php endif; ?>
+                        </div>
+                        <button type="button" class="button" id="pc_iconSvg_button">Select Image</button>
+                        <button type="button" class="button" id="pc_iconSvg_clear" style="<?php echo empty( $pc['iconSvg'] ) ? 'display:none;' : ''; ?>">Remove</button>
                     </td>
                 </tr>
                 <tr>
@@ -344,6 +361,42 @@ function cascade_render_settings_page() {
             <?php submit_button( 'Save Defaults' ); ?>
         </form>
     </div>
+    <script>
+    jQuery(function($) {
+        function toggleIconRows() {
+            var isSvg = $('#pc_iconType').val() === 'svg';
+            $('#pc_icon_row').toggle(!isSvg);
+            $('#pc_iconSvg_row').toggle(isSvg);
+        }
+        toggleIconRows();
+        $('#pc_iconType').on('change', toggleIconRows);
+
+        var mediaFrame;
+        $('#pc_iconSvg_button').on('click', function(e) {
+            e.preventDefault();
+            if (mediaFrame) { mediaFrame.open(); return; }
+            mediaFrame = wp.media({
+                title: 'Select Icon Image',
+                button: { text: 'Use this image' },
+                multiple: false,
+                library: { type: 'image' }
+            });
+            mediaFrame.on('select', function() {
+                var attachment = mediaFrame.state().get('selection').first().toJSON();
+                $('#pc_iconSvg').val(attachment.url);
+                $('#pc_iconSvg_preview').html('<img src="' + attachment.url + '" style="max-height:48px; margin-bottom:8px; display:block;">');
+                $('#pc_iconSvg_clear').show();
+            });
+            mediaFrame.open();
+        });
+
+        $('#pc_iconSvg_clear').on('click', function() {
+            $('#pc_iconSvg').val('');
+            $('#pc_iconSvg_preview').empty();
+            $(this).hide();
+        });
+    });
+    </script>
     <?php
 }
 
