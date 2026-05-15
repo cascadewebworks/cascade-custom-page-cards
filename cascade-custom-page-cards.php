@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Cascade Custom - Page Cards
  * Description: A Gutenberg block that renders a responsive grid of clickable cards, sourced from child pages, custom entries, or a custom post type.
- * Version:     4.0.0
+ * Version:     4.0.1
  * Author:      Cascade Webworks
  * Author URI:  https://cascadewebworks.net/
  */
