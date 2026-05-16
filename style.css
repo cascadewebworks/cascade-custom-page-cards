@@ -21,6 +21,19 @@
     text-decoration: none !important;
 }
 
+.child-page-icon-svg {
+    display: block;
+    width: 32px;
+    height: 32px;
+    background-color: currentColor;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+}
+
 .child-page-card:hover,
 .child-page-card:focus {
     text-decoration: none;
@@ -48,6 +61,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 32px;
+    flex-shrink: 0;
 }
 
 .child-page-card--rounded .child-page-icon i,
@@ -98,6 +113,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 32px;
+    flex-shrink: 0;
 }
 
 .child-page-card--flat .child-page-icon i,

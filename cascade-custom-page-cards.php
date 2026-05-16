@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Cascade Custom - Page Cards
  * Description: A Gutenberg block that renders a responsive grid of clickable cards, sourced from child pages, custom entries, or a custom post type.
- * Version:     4.0.1
+ * Version:     4.1.0
  * Author:      Cascade Webworks
  * Author URI:  https://cascadewebworks.net/
  */
@@ -32,6 +32,7 @@ function cascade_default_settings() {
             'iconType'          => 'mdi',
             'icon'              => 'chevron-right',
             'iconSvg'           => '',
+            'iconColor'         => '',
             'subtitleSource'    => 'excerpt',
             'cardCount'         => 2,
             'cptIconField'      => 'cpt_icon',
@@ -122,6 +123,7 @@ function cascade_register_blocks() {
             'iconType'       => array( 'type' => 'string', 'default' => $pc['iconType'] ),
             'icon'           => array( 'type' => 'string', 'default' => $pc['icon'] ),
             'iconSvg'        => array( 'type' => 'string', 'default' => $pc['iconSvg'] ),
+            'iconColor'      => array( 'type' => 'string', 'default' => $pc['iconColor'] ),
             'subtitleSource' => array( 'type' => 'string', 'default' => $pc['subtitleSource'] ),
             // Custom Entries
             'cardCount' => array( 'type' => 'integer', 'default' => $pc['cardCount'] ),
@@ -212,6 +214,8 @@ function cascade_sanitize_settings( $input ) {
             $settings['pageCards']['icon'] = sanitize_text_field( $pc['icon'] );
         if ( isset( $pc['iconSvg'] ) )
             $settings['pageCards']['iconSvg'] = esc_url_raw( $pc['iconSvg'] );
+        if ( isset( $pc['iconColor'] ) && ( $pc['iconColor'] === '' || preg_match( '/^#[0-9a-fA-F]{6}$/', $pc['iconColor'] ) ) )
+            $settings['pageCards']['iconColor'] = $pc['iconColor'];
         if ( isset( $pc['subtitleSource'] ) && in_array( $pc['subtitleSource'], $subtitle_sources, true ) )
             $settings['pageCards']['subtitleSource'] = $pc['subtitleSource'];
         $cnt = isset( $pc['cardCount'] ) ? intval( $pc['cardCount'] ) : 2;
@@ -230,8 +234,9 @@ function cascade_sanitize_settings( $input ) {
 
 function cascade_render_settings_page() {
     if ( ! current_user_can( 'manage_options' ) ) { return; }
-    $s  = cascade_get_settings();
-    $pc = $s['pageCards'];
+    $s           = cascade_get_settings();
+    $pc          = $s['pageCards'];
+    $svg_enabled = in_array( 'image/svg+xml', get_allowed_mime_types() );
     ?>
     <div class="wrap">
         <h1>Page Cards Defaults</h1>
@@ -269,6 +274,18 @@ function cascade_render_settings_page() {
                     <th scope="row"><label for="pc_textColor">Text Color</label></th>
                     <td><input type="text" name="cascade_blocks_defaults[pageCards][textColor]" id="pc_textColor" value="<?php echo esc_attr( $pc['textColor'] ); ?>" class="cascade-color-picker"></td>
                 </tr>
+                <tr>
+                    <th scope="row"><label for="pc_iconColorMode">Icon Color</label></th>
+                    <td>
+                        <select id="pc_iconColorMode">
+                            <option value="">Inherit</option>
+                            <option value="custom" <?php echo ! empty( $pc['iconColor'] ) ? 'selected' : ''; ?>>Custom</option>
+                        </select>
+                        <div id="pc_iconColorRow" style="margin-top: 8px;<?php echo empty( $pc['iconColor'] ) ? ' display:none;' : ''; ?>">
+                            <input type="text" name="cascade_blocks_defaults[pageCards][iconColor]" id="pc_iconColor" value="<?php echo esc_attr( $pc['iconColor'] ?: '#333333' ); ?>" class="cascade-color-picker">
+                        </div>
+                    </td>
+                </tr>
             </table>
 
             <h2>Child Pages Source</h2>
@@ -302,6 +319,9 @@ function cascade_render_settings_page() {
                         </div>
                         <button type="button" class="button" id="pc_iconSvg_button">Select Image</button>
                         <button type="button" class="button" id="pc_iconSvg_clear" style="<?php echo empty( $pc['iconSvg'] ) ? 'display:none;' : ''; ?>">Remove</button>
+                        <?php if ( ! $svg_enabled ) : ?>
+                        <p class="notice notice-warning inline" style="margin-top: 10px; padding: 6px 12px;">SVG uploads are not currently enabled in your WordPress installation. You can enable them by installing a plugin that adds SVG support, or by adding the necessary code to your theme.</p>
+                        <?php endif; ?>
                     </td>
                 </tr>
                 <tr>
@@ -395,6 +415,16 @@ function cascade_render_settings_page() {
             $('#pc_iconSvg_preview').empty();
             $(this).hide();
         });
+
+        // Icon color mode
+        $('#pc_iconColorMode').on('change', function() {
+            $('#pc_iconColorRow').toggle($(this).val() === 'custom');
+        });
+        $('form').on('submit', function() {
+            if ($('#pc_iconColorMode').val() === '') {
+                $('#pc_iconColor').val('');
+            }
+        });
     });
     </script>
     <?php
@@ -413,7 +443,8 @@ function cascade_enqueue_icon_style( $icon_type ) {
 
 function cascade_build_icon_html( $icon_type, $icon, $icon_svg ) {
     if ( $icon_type === 'svg' && ! empty( $icon_svg ) ) {
-        return '<img src="' . esc_url( $icon_svg ) . '" class="child-page-icon-img" alt="" aria-hidden="true">';
+        $url = esc_url( $icon_svg );
+        return '<span class="child-page-icon-svg" style="-webkit-mask-image: url(\'' . $url . '\'); mask-image: url(\'' . $url . '\');" aria-hidden="true"></span>';
     } elseif ( $icon_type === 'fa' ) {
         return '<i class="' . esc_attr( $icon ) . '" aria-hidden="true"></i>';
     } elseif ( $icon_type === 'dashicons' ) {
@@ -423,13 +454,13 @@ function cascade_build_icon_html( $icon_type, $icon, $icon_svg ) {
     }
 }
 
-function cascade_render_card( $card_style, $permalink, $title, $subtitle, $icon_html, $bg_color, $text_color ) {
+function cascade_render_card( $card_style, $permalink, $title, $subtitle, $icon_html, $bg_color, $text_color, $icon_color = '' ) {
     $style_class = esc_attr( $card_style );
     ob_start();
     if ( $card_style === 'guide' ) : ?>
         <a href="<?php echo esc_url( $permalink ); ?>" class="child-page-card child-page-card--guide" style="border-left-color: <?php echo $bg_color; ?>;">
             <div class="unit-main">
-                <?php if ( $icon_html ) : ?><div class="unit-icon" style="color: <?php echo $bg_color; ?>;"><?php echo $icon_html; ?></div><?php endif; ?>
+                <?php if ( $icon_html ) : ?><div class="unit-icon" style="color: <?php echo $icon_color ?: $bg_color; ?>;"><?php echo $icon_html; ?></div><?php endif; ?>
                 <div class="unit-info">
                     <h3 style="color: <?php echo $bg_color; ?>;"><?php echo esc_html( $title ); ?></h3>
                     <?php if ( $subtitle ) : ?><p style="color: <?php echo $text_color; ?>;"><?php echo esc_html( $subtitle ); ?></p><?php endif; ?>
@@ -438,7 +469,7 @@ function cascade_render_card( $card_style, $permalink, $title, $subtitle, $icon_
         </a>
     <?php else : ?>
         <a href="<?php echo esc_url( $permalink ); ?>" class="child-page-card child-page-card--<?php echo $style_class; ?>" style="background-color: <?php echo $bg_color; ?>; color: <?php echo $text_color; ?>;">
-            <?php if ( $icon_html ) : ?><div class="child-page-icon"><?php echo $icon_html; ?></div><?php endif; ?>
+            <?php if ( $icon_html ) : ?><div class="child-page-icon"<?php if ( $icon_color ) echo ' style="color: ' . $icon_color . ';"'; ?>><?php echo $icon_html; ?></div><?php endif; ?>
             <div class="child-page-content">
                 <h3 style="color: <?php echo $text_color; ?>;"><?php echo esc_html( $title ); ?></h3>
                 <?php if ( $subtitle ) : ?><p><?php echo esc_html( $subtitle ); ?></p><?php endif; ?>
@@ -472,7 +503,8 @@ function cascade_render_child_pages( $attributes, $card_style, $grid_class, $bg_
     }
 
     cascade_enqueue_icon_style( $attributes['iconType'] );
-    $icon_html = cascade_build_icon_html( $attributes['iconType'], $attributes['icon'], $attributes['iconSvg'] );
+    $icon_html  = cascade_build_icon_html( $attributes['iconType'], $attributes['icon'], $attributes['iconSvg'] );
+    $icon_color = esc_attr( isset( $attributes['iconColor'] ) ? $attributes['iconColor'] : '' );
 
     $query = new WP_Query( array(
         'post_type'      => 'page',
@@ -499,7 +531,7 @@ function cascade_render_child_pages( $attributes, $card_style, $grid_class, $bg_
         } elseif ( $attributes['subtitleSource'] === 'page_description' ) {
             $subtitle = get_post_meta( get_the_ID(), 'page_description', true );
         }
-        echo cascade_render_card( $card_style, get_permalink(), get_the_title(), $subtitle, $icon_html, $bg_color, $text_color );
+        echo cascade_render_card( $card_style, get_permalink(), get_the_title(), $subtitle, $icon_html, $bg_color, $text_color, $icon_color );
     }
     wp_reset_postdata();
     echo '</div></div>';
@@ -507,7 +539,8 @@ function cascade_render_child_pages( $attributes, $card_style, $grid_class, $bg_
 }
 
 function cascade_render_custom_entries( $attributes, $card_style, $grid_class, $bg_color, $text_color ) {
-    $cards = isset( $attributes['cards'] ) ? array_slice( $attributes['cards'], 0, intval( $attributes['cardCount'] ) ) : array();
+    $cards      = isset( $attributes['cards'] ) ? array_slice( $attributes['cards'], 0, intval( $attributes['cardCount'] ) ) : array();
+    $icon_color = esc_attr( isset( $attributes['iconColor'] ) ? $attributes['iconColor'] : '' );
     if ( empty( $cards ) ) { return ''; }
 
     foreach ( $cards as $card ) {
@@ -526,7 +559,7 @@ function cascade_render_custom_entries( $attributes, $card_style, $grid_class, $
             isset( $card['icon'] )     ? $card['icon']     : '',
             isset( $card['iconSvg'] )  ? $card['iconSvg']  : ''
         );
-        echo cascade_render_card( $card_style, $link, $title, $desc, $icon_html, $bg_color, $text_color );
+        echo cascade_render_card( $card_style, $link, $title, $desc, $icon_html, $bg_color, $text_color, $icon_color );
     }
     echo '</div></div>';
     return ob_get_clean();
@@ -538,6 +571,7 @@ function cascade_render_cpt_entries( $attributes, $card_style, $grid_class, $bg_
 
     $icon_field      = sanitize_key( $attributes['cptIconField'] );
     $icon_type_field = sanitize_key( $attributes['cptIconTypeField'] );
+    $icon_color      = esc_attr( isset( $attributes['iconColor'] ) ? $attributes['iconColor'] : '' );
     $subtitle_source = isset( $attributes['cptSubtitleSource'] ) ? $attributes['cptSubtitleSource'] : 'excerpt';
     $subtitle_field  = sanitize_key( isset( $attributes['cptSubtitleField'] ) ? $attributes['cptSubtitleField'] : '' );
 
@@ -568,7 +602,7 @@ function cascade_render_cpt_entries( $attributes, $card_style, $grid_class, $bg_
         } else {
             $subtitle = '';
         }
-        echo cascade_render_card( $card_style, get_permalink(), get_the_title(), $subtitle, $icon_html, $bg_color, $text_color );
+        echo cascade_render_card( $card_style, get_permalink(), get_the_title(), $subtitle, $icon_html, $bg_color, $text_color, $icon_color );
     }
     wp_reset_postdata();
     echo '</div></div>';

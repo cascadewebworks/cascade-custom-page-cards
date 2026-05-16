@@ -13,7 +13,7 @@
     var defs  = window.cascadeBlocksDefaults || {};
     var pcDef = defs.pageCards || {
         cardStyle: 'rounded', columns: 2, bgColor: '#f0f0f0', textColor: '#333333',
-        iconType: 'mdi', icon: 'chevron-right', subtitleSource: 'excerpt',
+        iconType: 'mdi', icon: 'chevron-right', iconSvg: '', iconColor: '', subtitleSource: 'excerpt',
         cardCount: 2, cptIconField: 'cpt_icon', cptIconTypeField: 'cpt_icon_type',
         cptSubtitleSource: 'excerpt'
     };
@@ -99,7 +99,8 @@
         { label: 'Custom Image / SVG',    value: 'svg' }
     ];
 
-    function colorPanelBody(cardStyle, bgColor, textColor, onBgChange, onTextChange) {
+    function colorPanelBody(cardStyle, bgColor, textColor, iconColor, onBgChange, onTextChange, onIconColorChange) {
+        var iconColorMode = iconColor ? 'custom' : '';
         return el(PanelBody, { title: 'Colors', initialOpen: false },
             el('p', {}, cardStyle === 'guide' ? 'Accent Color (left border, icon, title)' : 'Background Color'),
             withReset(
@@ -112,6 +113,24 @@
                 el(ColorPicker, { color: textColor, onChange: onTextChange }),
                 textColor === pcDef.textColor,
                 function() { onTextChange(pcDef.textColor); }
+            ),
+            el('p', {}, 'Icon Color'),
+            withReset(
+                el('div', {},
+                    el(SelectControl, {
+                        options: [
+                            { label: 'Inherit', value: '' },
+                            { label: 'Custom',  value: 'custom' }
+                        ],
+                        value: iconColorMode,
+                        onChange: function(val) {
+                            onIconColorChange(val === 'custom' ? (pcDef.iconColor || '#333333') : '');
+                        }
+                    }),
+                    iconColor ? el(ColorPicker, { color: iconColor, onChange: onIconColorChange }) : null
+                ),
+                iconColor === pcDef.iconColor,
+                function() { onIconColorChange(pcDef.iconColor); }
             )
         );
     }
@@ -312,9 +331,10 @@
                 ),
 
                 colorPanelBody(
-                    attributes.cardStyle, attributes.bgColor, attributes.textColor,
+                    attributes.cardStyle, attributes.bgColor, attributes.textColor, attributes.iconColor,
                     function(val) { setAttributes({ bgColor: val }); },
-                    function(val) { setAttributes({ textColor: val }); }
+                    function(val) { setAttributes({ textColor: val }); },
+                    function(val) { setAttributes({ iconColor: val }); }
                 ),
                 toolsPanel(attributes)
             );
