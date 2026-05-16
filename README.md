@@ -9,7 +9,7 @@ A WordPress Gutenberg block that renders a responsive grid of clickable cards. C
 
 ## Installation
 
-1. Download the latest release zip from the [Releases](https://github.com/cascadewebworks/page-cards/releases) page.
+1. Download the latest release zip from the [Releases](https://github.com/cascadewebworks/cascade-custom-page-cards/releases) page.
 2. In WordPress Admin go to **Plugins → Add New → Upload Plugin**, select the zip, and install.
 3. Activate the plugin.
 
@@ -78,7 +78,7 @@ Example ACF field group configuration:
 |---|---|
 | **Rounded** | Filled card with rounded corners. Background color applies to the whole card. |
 | **Flat** | Same as Rounded with square corners. |
-| **Guide** | White card with a colored left border and accent color on the icon and title. Background/Accent color applies to the border, icon, and title; a separate text color applies to the subtitle. |
+| **Guide** | White card with a colored left border and accent color on the icon and title. Background/Accent color applies to the border and title; Icon Color (when set) overrides the icon color; a separate text color applies to the subtitle. |
 
 ### Block Settings
 
@@ -93,6 +93,7 @@ All settings are in the block's sidebar inspector panel.
 | Desktop Columns | 1–4 | 2 |
 | Background / Accent Color | Hex color | `#f0f0f0` |
 | Text Color | Hex color | `#333333` |
+| Icon Color | Inherit, Custom (hex color) | Inherit |
 
 **Child Pages source**
 
@@ -134,3 +135,5 @@ The plugin loads icon libraries on-demand based on the icon type selected.
 | **Font Awesome** | Full class string — e.g. `fa-solid fa-house`, `fa-regular fa-envelope` | [fontawesome.com/icons](https://fontawesome.com/icons) |
 | **Dashicons** | Name without the `dashicons-` prefix — e.g. `admin-home`, `format-image` | [developer.wordpress.org/resource/dashicons](https://developer.wordpress.org/resource/dashicons/) |
 | **Custom Image / SVG** | Image URL selected from the media library | — |
+
+SVG icons are rendered via CSS `mask-image` rather than as `<img>` tags, which means they respond to the Icon Color setting just like font icons. For best results use a single-color SVG. If SVG uploads are not enabled in WordPress, a notice will appear in the settings page when this type is selected.
